@@ -1,40 +1,42 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 public final class ServidorWeb {
+    private static final int PUERTO = 6789;
+    private static final int NUMERO_HILOS = 10;
+
     public static void main(String argv[]) throws Exception {
-        // Establece el puerto en el que escuchará el servidor
-        int puerto = 6789;
+        // Crear un ThreadPool con un número fijo de hilos
+        ExecutorService threadPool = Executors.newFixedThreadPool(NUMERO_HILOS);
         
-        // Crea un socket de servidor para escuchar conexiones
-        ServerSocket socketServidor = new ServerSocket(puerto);
-        System.out.println("Servidor Web en espera de conexiones en el puerto " + puerto + "...");
+        // Crear un socket de servidor para escuchar conexiones
+        ServerSocket socketServidor = new ServerSocket(PUERTO);
+        System.out.println("Servidor Web en espera de conexiones en el puerto " + PUERTO + "...");
 
         // Bucle infinito para aceptar solicitudes
         while (true) {
             // Espera una conexión de un cliente
             Socket socketConexion = socketServidor.accept();
             
-            // Crea un nuevo hilo para manejar la solicitud
-            SolicitudHttp solicitud = new SolicitudHttp(socketConexion);
-            Thread hilo = new Thread(solicitud);
-            hilo.start();
+            // Enviar la tarea al ThreadPool en lugar de crear un hilo manualmente
+            threadPool.execute(new SolicitudHttp(socketConexion));
         }
     }
 }
 
-// Clase que maneja cada solicitud HTTP en un hilo separado
+// Clase que maneja cada solicitud HTTP
 final class SolicitudHttp implements Runnable {
     final static String CRLF = "\r\n";
     private Socket socket;
 
     // Constructor
-    public SolicitudHttp(Socket socket) throws Exception {
+    public SolicitudHttp(Socket socket) {
         this.socket = socket;
     }
 
-    // Método ejecutado en el nuevo hilo
+    // Método ejecutado en el nuevo hilo del ThreadPool
     public void run() {
         try {
             procesarSolicitud();
@@ -55,7 +57,6 @@ final class SolicitudHttp implements Runnable {
         String lineaDeSolicitud = br.readLine();
         System.out.println("Solicitud recibida: " + lineaDeSolicitud);
         
-        // Leer y mostrar los headers
         String lineaDelHeader;
         while ((lineaDelHeader = br.readLine()).length() != 0) {
             System.out.println(lineaDelHeader);
